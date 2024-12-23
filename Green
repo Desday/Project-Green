@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Resources Finder with Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f7f6;
+      color: #333;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 80%;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .search-section {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .search-section input {
+      padding: 12px;
+      width: 60%;
+      max-width: 300px;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    .search-section button {
+      padding: 12px 20px;
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #map {
+      height: 500px;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .resource-list {
+      margin-top: 30px;
+    }
+    .resource-list ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    .resource-list li {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      margin-bottom: 10px;
+      padding: 15px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Search Section -->
+    <div class="search-section">
+      <input type="text" id="city-search" placeholder="Enter a City Name">
+      <button id="search-btn">Search</button>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Resource List -->
+    <div class="resource-list" id="resource-list"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+  <script>
+    // Initialize the map (default to San Francisco)
+    const map = L.map('map').setView([37.7749, -122.4194], 13); // San Francisco coordinates
+
+    // Set up the OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Initialize marker cluster group
+    const markers = L.markerClusterGroup();
+
+    // Example data for markers (Local Markets, Credit Unions, and Thrift Shops in different cities)
+    const resourcesData = {
+      "san francisco": [
+        { name: "Ferry Plaza Farmers Market", lat: 37.7950, lon: -122.3937, type: "Local Market", address: "1 Ferry Building, San Francisco, CA" },
+        { name: "San Francisco Federal Credit Union", lat: 37.7771, lon: -122.4161, type: "Credit Union", address: "770 Golden Gate Ave, San Francisco, CA" },
+        { name: "Goodwill San Francisco", lat: 37.7763, lon: -122.4241, type: "Thrift Shop", address: "1500 17th St, San Francisco, CA" }
+      ],
+      "new york": [
+        { name: "Union Square Greenmarket", lat: 40.7359, lon: -73.9911, type: "Local Market", address: "Park Ave & 17th St, New York, NY" },
+        { name: "Capital One Credit Union", lat: 40.7463, lon: -73.9870, type: "Credit Union", address: "850 3rd Ave, New York, NY" },
+        { name: "The Salvation Army Thrift Store", lat: 40.7365, lon: -73.9940, type: "Thrift Shop", address: "139 E 23rd St, New York, NY" }
+      ],
+      "chicago": [
+        { name: "Green City Market", lat: 41.9159, lon: -87.6339, type: "Local Market", address: "1751 N Clark St, Chicago, IL" },
+        { name: "Alliant Credit Union", lat: 41.9021, lon: -87.6319, type: "Credit Union", address: "115 S LaSalle St, Chicago, IL" },
+        { name: "Chicago Thrift Shop", lat: 41.9100, lon: -87.6360, type: "Thrift Shop", address: "1740 W North Ave, Chicago, IL" }
+      ],
+      "los angeles": [
+        { name: "Hollywood Farmers Market", lat: 34.0926, lon: -118.3274, type: "Local Market", address: "1600 Ivar Ave, Los Angeles, CA" },
+        { name: "Los Angeles Federal Credit Union", lat: 34.0483, lon: -118.2600, type: "Credit Union", address: "1980 S. Sepulveda Blvd, Los Angeles, CA" },
+        { name: "Out of the Closet Thrift Store", lat: 34.0693, lon: -118.2975, type: "Thrift Shop", address: "5180 W 3rd St, Los Angeles, CA" }
+      ],
+      "miami": [
+        { name: "Little Havana Farmers Market", lat: 25.7615, lon: -80.2000, type: "Local Market", address: "1401 W Flagler St, Miami, FL" },
+        { name: "Miami Credit Union", lat: 25.7743, lon: -80.1937, type: "Credit Union", address: "1541 SW 1st St, Miami, FL" },
+        { name: "Goodwill Miami", lat: 25.7622, lon: -80.1911, type: "Thrift Shop", address: "3000 NW 36th St, Miami, FL" }
+      ],
+      "boston": [
+        { name: "Boston Public Market", lat: 42.3601, lon: -71.0589, type: "Local Market", address: "100 Hanover St, Boston, MA" },
+        { name: "Eastern Bank", lat: 42.3573, lon: -71.0587, type: "Credit Union", address: "265 Franklin St, Boston, MA" },
+        { name: "Savers Thrift Store", lat: 42.3607, lon: -71.0611, type: "Thrift Shop", address: "2201 Commonwealth Ave, Boston, MA" }
+      ],
+      "austin": [
+        { name: "Texas Farmers' Market", lat: 30.2672, lon: -97.7426, type: "Local Market", address: "325 San Antonio St, Austin, TX" },
+        { name: "University Federal Credit Union", lat: 30.2825, lon: -97.7401, type: "Credit Union", address: "2900 W Anderson Ln, Austin, TX" },
+        { name: "Thrift Town Austin", lat: 30.2730, lon: -97.7452, type: "Thrift Shop", address: "6601 Burnet Rd, Austin, TX" }
+      ],
+      "seattle": [
+        { name: "Pike Place Market", lat: 47.6097, lon: -122.3331, type: "Local Market", address: "85 Pike St, Seattle, WA" },
+        { name: "Seattle Credit Union", lat: 47.6091, lon: -122.3343, type: "Credit Union", address: "800 2nd Ave, Seattle, WA" },
+        { name: "Deseret Industries Thrift Store", lat: 47.6069, lon: -122.3280, type: "Thrift Shop", address: "3121 3rd Ave, Seattle, WA" }
+      ],
+      "portland": [
+        { name: "Portland Farmers Market", lat: 45.5183, lon: -122.6798, type: "Local Market", address: "240 N Broadway St, Portland, OR" },
+        { name: "OnPoint Community Credit Union", lat: 45.5231, lon: -122.6765, type: "Credit Union", address: "620 SW 5th Ave, Portland, OR" },
+        { name: "Goodwill Portland", lat: 45.5232, lon: -122.6760, type: "Thrift Shop", address: "2220 N Interstate Ave, Portland, OR" }
+      ]
+    };
+
+    // Function to search and add markers for the selected city
+    function searchCity(city) {
+      // Clear existing markers
+      markers.clearLayers();
+
+      // Clear existing resource list
+      const resourceListContainer = document.getElementById('resource-list');
+      resourceListContainer.innerHTML = '';
+
+      // Get data for the city (city name is case-insensitive)
+      const cityResources = resourcesData[city.toLowerCase()];
+
+      if (cityResources) {
+        cityResources.forEach(resource => {
+          // Add markers to the map
+          const marker = L.marker([resource.lat, resource.lon])
+            .bindPopup(`<b>${resource.name}</b><br>${resource.type}<br>${resource.address}`);
+          markers.addLayer(marker);
+
+          // Add resource info to the list below the map
+          const resourceItem = document.createElement('li');
+          resourceItem.innerHTML = `<b>${resource.name}</b><br>${resource.type}<br><i>${resource.address}</i>`;
+          resourceListContainer.appendChild(resourceItem);
+        });
+        map.addLayer(markers); // Add the markers to the map
+      } else {
+        alert('No data available for this city.');
+        // Optionally, display the default city if no results
+        searchCity('san francisco');
+      }
+    }
+
+    // Default to San Francisco if the page loads with no search
+    searchCity('san francisco');
+
+    // Search button functionality
+    document.getElementById('search-btn').addEventListener('click', () => {
+      const city = document.getElementById('city-search').value.trim();
+      if (city) {
+        searchCity(city);
+      }
+    });
+  </script>
+
+</body>
+</html>
